@@ -5,55 +5,71 @@ public class PlayerMov : MonoBehaviour
 {
     public float speed;
     public float jumpHeight;
-    public float gravity;
+    public const float Gravity = 9.81f;
+    public Transform cameraTransform;
+    public float mouseSensitivity;
 
     private CharacterController controller;
     private Vector3 velocity;
     private bool isGrounded;
-    private Vector2 moveInput;
-    private bool jumpInput;
+    private float xRotation = 0f;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
     void Update()
     {
-        // Comprobar si está en el suelo
+        MovePlayer();
+        RotateCamera();
+    }
+
+    void MovePlayer()
+    {
+        // Verifica si está tocando el suelo
         isGrounded = controller.isGrounded;
         if (isGrounded && velocity.y < 0)
         {
-            velocity.y = -2f; // Pequeño empuje hacia abajo para asegurar contacto con el suelo
+            velocity.y = -2f;
         }
 
-        // Movimiento horizontal
-        Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-        controller.Move(move * speed * Time.deltaTime);
+        // Input de movimiento
+        float horizontal = Input.GetAxis("Horizontal");
+        float vertical = Input.GetAxis("Vertical");
+
+        // Dirección relativa a la cámara
+        Vector3 moveDirection = cameraTransform.forward * vertical + cameraTransform.right * horizontal;
+        moveDirection.y = 0f; // Evita que el personaje se incline al moverse
+        moveDirection.Normalize();
+
+        // Aplicar movimiento
+        controller.Move(moveDirection * speed * Time.deltaTime);
 
         // Salto
-        if (jumpInput && isGrounded)
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
-            velocity.y = Mathf.Sqrt(jumpHeight * 2f * gravity);
-            jumpInput = false; // Resetear el input del salto
+            velocity.y = Mathf.Sqrt(jumpHeight * 2f * Gravity);
         }
 
         // Aplicar gravedad
-        velocity.y -= gravity * Time.deltaTime;
+        velocity.y -= Gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
     }
 
-    public void OnMove(InputAction.CallbackContext context)
+    void RotateCamera()
     {
-        moveInput = context.ReadValue<Vector2>();
-    }
+        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
-    public void OnJump(InputAction.CallbackContext context)
-    {
-        if (context.performed)
-        {
-            jumpInput = true;
-        }
+        // Rotar el jugador en el eje Y (izquierda/derecha)
+        transform.Rotate(Vector3.up * mouseX);
+
+        // Rotar la cámara en el eje X (arriba/abajo)
+        xRotation -= mouseY;
+        xRotation = Mathf.Clamp(xRotation, -90f, 90f); // Limita la rotación de la cámara
+        cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
     }
 }
 
